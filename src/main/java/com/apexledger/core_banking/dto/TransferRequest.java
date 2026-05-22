@@ -21,5 +21,5 @@ public class TransferRequest {
     private BigDecimal amount;
 
     @NotBlank(message = "Idempotency key is required to prevent duplicate charges")
-    private String idempotecyKey;
+    private String idempotencyKey;
 }

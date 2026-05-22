@@ -11,7 +11,8 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
-    boolean existsByIdempotencyKey (String idempotencyKey);
+    @Query("SELECT CASE WHEN COUNT (t) > 0 THEN true ELSE false END FROM Transaction t WHERE t.idempotencyKey = :key")
+    boolean existsByIdempotencyKey (@Param("key") String idempotencyKey);
 
     //Total Money credited
     @Query("SELECT COALESCE(SUM (t.amount), 0) FROM Transaction t WHERE t.destinationAccount = :account AND t.status = 'COMPLETED' ")
