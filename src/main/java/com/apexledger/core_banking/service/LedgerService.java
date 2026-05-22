@@ -58,6 +58,6 @@ public class LedgerService {
         transaction.setIdempotencyKey(idempotencyKey);
         transaction.setStatus("COMPLETED");
 
-        transactionRepository.save(transaction);
+        return transactionRepository.save(transaction);
     }
 }
