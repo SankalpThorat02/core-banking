@@ -1,9 +1,13 @@
 package com.apexledger.core_banking.service;
 
+import com.apexledger.core_banking.dto.TransactionHistoryResponse;
 import com.apexledger.core_banking.model.Account;
+import com.apexledger.core_banking.model.Transaction;
 import com.apexledger.core_banking.repository.AccountRepository;
 import com.apexledger.core_banking.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -42,5 +46,30 @@ public class AccountService {
         BigDecimal totalDebits = transactionRepository.calculateTotalDebits(account);
 
         return totalCredits.subtract(totalDebits);
+    }
+
+    public Page<TransactionHistoryResponse> getAccountStatement(String accountNumber, Pageable pageable) {
+        Account account = getAccountByNumber(accountNumber);
+
+        Page<Transaction> transactions = transactionRepository.findAccountStatement(account, pageable);
+
+        return transactions.map(
+                txn -> {
+                    boolean isSender = txn.getSourceAccount().getAccountNumber().equals(accountNumber);
+
+                    String type = isSender ? "DEBIT" : "CREDIT";
+                    String counterpartyAccount = isSender ?
+                            txn.getDestinationAccount().getAccountNumber() : txn.getSourceAccount().getAccountNumber();
+
+                    return new TransactionHistoryResponse(
+                            txn.getUuid().toString(),
+                            type,
+                            txn.getAmount(),
+                            counterpartyAccount,
+                            txn.getTimestamp(),
+                            txn.getStatus()
+                    );
+                }
+        );
     }
 }

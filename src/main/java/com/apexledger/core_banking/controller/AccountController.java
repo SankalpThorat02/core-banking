@@ -3,15 +3,20 @@ package com.apexledger.core_banking.controller;
 import com.apexledger.core_banking.dto.BalanceResponse;
 import com.apexledger.core_banking.dto.CreateAccountRequest;
 import com.apexledger.core_banking.dto.CreateAccountResponse;
+import com.apexledger.core_banking.dto.TransactionHistoryResponse;
 import com.apexledger.core_banking.model.Account;
 import com.apexledger.core_banking.repository.AccountRepository;
 import com.apexledger.core_banking.service.AccountService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -49,5 +54,17 @@ public class AccountController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{accountNumber}/transactions")
+    public ResponseEntity<Page<TransactionHistoryResponse>> getStatement(
+            @PathVariable String accountNumber,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<TransactionHistoryResponse> statement = accountService.getAccountStatement(accountNumber, pageable);
+        return ResponseEntity.ok(statement);
     }
 }

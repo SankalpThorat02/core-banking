@@ -10,6 +10,9 @@ import org.springframework.web.servlet.tags.form.SelectTag;
 import java.math.BigDecimal;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
     @Query("SELECT CASE WHEN COUNT (t) > 0 THEN true ELSE false END FROM Transaction t WHERE t.idempotencyKey = :key")
     boolean existsByIdempotencyKey (@Param("key") String idempotencyKey);
@@ -21,4 +24,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     //Total Money debited
     @Query("SELECT COALESCE(SUM (t.amount), 0) FROM Transaction t WHERE t.sourceAccount = :account AND t.status = 'COMPLETED' ")
     BigDecimal calculateTotalDebits(@Param("account") Account account);
+
+    @Query("SELECT t FROM Transaction t WHERE t.sourceAccount = :account OR t.destinationAccount = :account ORDER BY t.timestamp DESC")
+    Page<Transaction> findAccountStatement(@Param("account") Account account,  Pageable pageable);
 }
