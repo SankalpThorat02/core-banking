@@ -21,7 +21,7 @@ public class Transaction {
     private UUID uuid;
 
     @ManyToOne
-    @JoinColumn(name = "source_accout_id", nullable = false)
+    @JoinColumn(name = "source_account_id", nullable = false)
     private Account sourceAccount;
 
     @ManyToOne
