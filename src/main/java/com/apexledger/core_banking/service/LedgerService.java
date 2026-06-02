@@ -62,4 +62,9 @@ public class LedgerService {
 
         return transactionRepository.save(transaction);
     }
+
+    @Transactional
+    public Transaction depositFunds(String toAccount, BigDecimal amount, String idempotencyKey) {
+        return transferFunds("VAULT-000", toAccount, amount, idempotencyKey);
+    }
 }

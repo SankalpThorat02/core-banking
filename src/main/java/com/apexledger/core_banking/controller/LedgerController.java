@@ -1,5 +1,6 @@
 package com.apexledger.core_banking.controller;
 
+import com.apexledger.core_banking.dto.DepositRequest;
 import com.apexledger.core_banking.dto.TransferRequest;
 import com.apexledger.core_banking.dto.TransferResponse;
 import com.apexledger.core_banking.model.Transaction;
@@ -24,6 +25,24 @@ public class LedgerController {
     public ResponseEntity<TransferResponse> transfer(@Valid @RequestBody TransferRequest requestDto) {
         Transaction completedTxn = ledgerService.transferFunds(
                 requestDto.getFromAccount(),
+                requestDto.getToAccount(),
+                requestDto.getAmount(),
+                requestDto.getIdempotencyKey()
+        );
+
+        TransferResponse response = new TransferResponse(
+                completedTxn.getUuid().toString(),
+                completedTxn.getStatus(),
+                completedTxn.getAmount(),
+                completedTxn.getTimestamp()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/deposit")
+    public ResponseEntity<TransferResponse> deposit(@Valid @RequestBody DepositRequest requestDto) {
+        Transaction completedTxn = ledgerService.depositFunds(
                 requestDto.getToAccount(),
                 requestDto.getAmount(),
                 requestDto.getIdempotencyKey()
