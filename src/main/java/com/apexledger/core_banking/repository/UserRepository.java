@@ -1,0 +1,13 @@
+package com.apexledger.core_banking.repository;
+
+import com.apexledger.core_banking.model.AppUser;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+import java.util.UUID;
+
+@Repository
+public interface UserRepository extends JpaRepository<AppUser, UUID> {
+    Optional<AppUser> findByUsername(String username);
+}
