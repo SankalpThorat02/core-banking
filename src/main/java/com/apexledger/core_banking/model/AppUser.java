@@ -2,6 +2,7 @@ package com.apexledger.core_banking.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -14,6 +15,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "sankalp_users")
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @Data
