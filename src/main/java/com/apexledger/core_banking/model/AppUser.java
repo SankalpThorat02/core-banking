@@ -1,5 +1,6 @@
 package com.apexledger.core_banking.model;
 
+import com.apexledger.core_banking.controller.AccountController;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,6 +34,9 @@ public class AppUser implements UserDetails {
 
     @Column(nullable = false)
     private String role;
+
+    @OneToMany(mappedBy = "user",  cascade = CascadeType.ALL, orphanRemoval = true)
+    List<Account> accounts;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

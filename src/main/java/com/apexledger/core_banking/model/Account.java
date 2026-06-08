@@ -26,4 +26,8 @@ public class Account {
 
     @Column(nullable = false)
     private String status;          //'Active' , 'Frozen'
+
+    @ManyToOne
+    @JoinColumn(name = "user_uuid", nullable = false)
+    private AppUser user;
 }

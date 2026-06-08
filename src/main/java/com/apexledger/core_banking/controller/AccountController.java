@@ -1,9 +1,6 @@
 package com.apexledger.core_banking.controller;
 
-import com.apexledger.core_banking.dto.BalanceResponse;
-import com.apexledger.core_banking.dto.CreateAccountRequest;
-import com.apexledger.core_banking.dto.CreateAccountResponse;
-import com.apexledger.core_banking.dto.TransactionHistoryResponse;
+import com.apexledger.core_banking.dto.*;
 import com.apexledger.core_banking.model.Account;
 import com.apexledger.core_banking.repository.AccountRepository;
 import com.apexledger.core_banking.service.AccountService;
@@ -18,7 +15,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import java.math.BigDecimal;
+import java.security.Principal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/accounts")
@@ -66,5 +65,12 @@ public class AccountController {
 
         Page<TransactionHistoryResponse> statement = accountService.getAccountStatement(accountNumber, pageable);
         return ResponseEntity.ok(statement);
+    }
+
+    @GetMapping("/myAccounts")
+    public ResponseEntity<List<AccountResponse>> getMyAccounts(Principal principal) {
+        String username = principal.getName();
+
+        return ResponseEntity.ok(accountService.getMyAccounts(username));
     }
 }
