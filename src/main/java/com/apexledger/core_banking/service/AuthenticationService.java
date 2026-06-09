@@ -1,12 +1,15 @@
 package com.apexledger.core_banking.service;
 
 import com.apexledger.core_banking.dto.AuthResponse;
+import com.apexledger.core_banking.dto.LoginRequest;
 import com.apexledger.core_banking.dto.RegisterRequest;
 import com.apexledger.core_banking.model.Account;
 import com.apexledger.core_banking.model.AppUser;
 import com.apexledger.core_banking.repository.AccountRepository;
 import com.apexledger.core_banking.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +23,7 @@ public class AuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AccountRepository accountRepository;
+    private final AuthenticationManager authenticationManager;
 
     public AuthResponse register(RegisterRequest registerRequest) {
         var user = AppUser.builder()
@@ -43,6 +47,25 @@ public class AuthenticationService {
 
         var jwtToken =  jwtService.generateToken(user);
         return AuthResponse.builder()
+                .token(jwtToken)
+                .build();
+    }
+
+    public AuthResponse login(LoginRequest loginRequest) {
+
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        loginRequest.getUsername(),
+                        loginRequest.getPassword()
+                )
+        );
+
+        var user =  userRepository.findByUsername(loginRequest.getUsername())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        var jwtToken =  jwtService.generateToken(user);
+
+        return  AuthResponse.builder()
                 .token(jwtToken)
                 .build();
     }

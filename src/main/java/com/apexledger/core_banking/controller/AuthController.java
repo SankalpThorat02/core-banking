@@ -1,6 +1,7 @@
 package com.apexledger.core_banking.controller;
 
 import com.apexledger.core_banking.dto.AuthResponse;
+import com.apexledger.core_banking.dto.LoginRequest;
 import com.apexledger.core_banking.dto.RegisterRequest;
 import com.apexledger.core_banking.service.AuthenticationService;
 import lombok.RequiredArgsConstructor;
@@ -22,5 +23,10 @@ public class AuthController {
             @RequestBody RegisterRequest registerRequest
     ) {
         return ResponseEntity.ok(authenticationService.register(registerRequest));
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest loginRequest) {
+        return ResponseEntity.ok(authenticationService.login(loginRequest));
     }
 }

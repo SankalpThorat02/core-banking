@@ -15,7 +15,7 @@ import java.util.UUID;
 public interface AccountRepository extends JpaRepository<Account, UUID> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT a FROM Account WHERE a.accountNumber = :accountNumber")
+    @Query("SELECT a FROM Account a WHERE a.accountNumber = :accountNumber")
     Optional<Account> findByAccountNumberForUpdate(@Param("accountNumber") String accountNumber);
 
     Optional<Account> findByAccountNumber( String accountNumber);
