@@ -32,10 +32,10 @@ public class LedgerService {
             throw new RuntimeException("Duplicate transaction request detected !");
         }
 
-        Account sourceAccount = accountRepository.findByAccountNumber(fromAccount)
+        Account sourceAccount = accountRepository.findByAccountNumberForUpdate(fromAccount)
                 .orElseThrow(() -> new RuntimeException("Source account not found"));
 
-        Account destinationAccount = accountRepository.findByAccountNumber(toAccount)
+        Account destinationAccount = accountRepository.findByAccountNumberForUpdate(toAccount)
                 .orElseThrow(() -> new RuntimeException("Destination account not found"));
 
         if(!sourceAccount.getStatus().equals("ACTIVE") || !destinationAccount.getStatus().equals("ACTIVE")) {
