@@ -1,5 +1,6 @@
 package com.apexledger.core_banking.service;
 
+import com.apexledger.core_banking.dto.AccountRequest;
 import com.apexledger.core_banking.dto.AccountResponse;
 import com.apexledger.core_banking.dto.TransactionHistoryResponse;
 import com.apexledger.core_banking.model.Account;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -27,14 +29,26 @@ public class AccountService {
     private final TransactionRepository transactionRepository;
     private final Random random = new Random();
 
-    public Account createAccount(String currency) {
+    public AccountResponse createAccount(AccountRequest accountRequest, String username) {
+        AppUser user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found!"));
+
+        String accountNumber = generateAccountNumber();
+
         Account account = new Account();
-        account.setAccountNumber(generateAccountNumber());
+        account.setAccountNumber(accountNumber);
+        account.setCurrency(accountRequest.getCurrency().toUpperCase());
+        account.setStatus("Active");
 
-        account.setCurrency(currency.toUpperCase());
-        account.setStatus("ACTIVE");
+        account.setUser(user);
 
-        return accountRepository.save(account);
+        Account savedAccount = accountRepository.save(account);
+
+        return AccountResponse.builder()
+                .accountNumber(savedAccount.getAccountNumber())
+                .currency(savedAccount.getCurrency())
+                .status(savedAccount.getStatus())
+                .build();
     }
 
     private String generateAccountNumber() {

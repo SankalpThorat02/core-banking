@@ -27,16 +27,11 @@ public class AccountController {
     private final AccountService accountService;
 
     @PostMapping
-    public ResponseEntity<CreateAccountResponse> createAccount(@Valid @RequestBody CreateAccountResponse request) {
+    public ResponseEntity<AccountResponse> createAccount(
+            @Valid @RequestBody AccountRequest request,
+            Principal principal) {
 
-        Account savedAccount = accountService.createAccount(request.getCurrency());
-
-        CreateAccountResponse response = new CreateAccountResponse(
-                savedAccount.getAccountNumber(),
-                savedAccount.getCurrency(),
-                savedAccount.getStatus()
-        );
-
+        AccountResponse response = accountService.createAccount(request, principal.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
