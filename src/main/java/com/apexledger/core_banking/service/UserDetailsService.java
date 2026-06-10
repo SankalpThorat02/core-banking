@@ -1,6 +1,6 @@
 package com.apexledger.core_banking.service;
 
-import com.apexledger.core_banking.model.AppUser;
+import com.apexledger.core_banking.entity.AppUser;
 import com.apexledger.core_banking.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;

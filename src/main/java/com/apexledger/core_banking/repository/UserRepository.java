@@ -1,6 +1,6 @@
 package com.apexledger.core_banking.repository;
 
-import com.apexledger.core_banking.model.AppUser;
+import com.apexledger.core_banking.entity.AppUser;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

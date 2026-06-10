@@ -1,18 +1,15 @@
 package com.apexledger.core_banking.service;
 
-import com.apexledger.core_banking.model.Account;
-import com.apexledger.core_banking.model.Transaction;
+import com.apexledger.core_banking.entity.Account;
+import com.apexledger.core_banking.entity.Transaction;
 import com.apexledger.core_banking.repository.AccountRepository;
 import com.apexledger.core_banking.repository.TransactionRepository;
 
 import jakarta.transaction.Transactional;
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Date;
 
 @Service
 public class LedgerService {

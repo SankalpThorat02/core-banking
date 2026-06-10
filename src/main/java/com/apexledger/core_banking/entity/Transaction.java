@@ -1,4 +1,4 @@
-package com.apexledger.core_banking.model;
+package com.apexledger.core_banking.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

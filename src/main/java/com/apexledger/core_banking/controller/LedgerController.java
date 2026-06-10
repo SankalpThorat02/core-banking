@@ -3,7 +3,7 @@ package com.apexledger.core_banking.controller;
 import com.apexledger.core_banking.dto.DepositRequest;
 import com.apexledger.core_banking.dto.TransferRequest;
 import com.apexledger.core_banking.dto.TransferResponse;
-import com.apexledger.core_banking.model.Transaction;
+import com.apexledger.core_banking.entity.Transaction;
 import com.apexledger.core_banking.service.LedgerService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;

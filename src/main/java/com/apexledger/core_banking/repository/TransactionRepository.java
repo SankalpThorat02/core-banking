@@ -1,11 +1,10 @@
 package com.apexledger.core_banking.repository;
 
-import com.apexledger.core_banking.model.Account;
-import com.apexledger.core_banking.model.Transaction;
+import com.apexledger.core_banking.entity.Account;
+import com.apexledger.core_banking.entity.Transaction;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.web.servlet.tags.form.SelectTag;
 
 import java.math.BigDecimal;
 import java.util.UUID;

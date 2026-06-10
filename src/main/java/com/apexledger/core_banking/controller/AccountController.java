@@ -1,8 +1,7 @@
 package com.apexledger.core_banking.controller;
 
 import com.apexledger.core_banking.dto.*;
-import com.apexledger.core_banking.model.Account;
-import com.apexledger.core_banking.repository.AccountRepository;
+import com.apexledger.core_banking.entity.Account;
 import com.apexledger.core_banking.service.AccountService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
