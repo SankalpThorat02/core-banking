@@ -11,7 +11,9 @@ import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Repository;
 
+@Repository
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
     @Query("SELECT CASE WHEN COUNT (t) > 0 THEN true ELSE false END FROM Transaction t WHERE t.idempotencyKey = :key")
     boolean existsByIdempotencyKey (@Param("key") String idempotencyKey);
