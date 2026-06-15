@@ -4,6 +4,7 @@ import com.apexledger.core_banking.entity.MediaMaster;
 import com.apexledger.core_banking.entity.RecruitTest;
 import com.apexledger.core_banking.entity.RecruitTestQuestion;
 import com.apexledger.core_banking.repository.MediaMasterRepository;
+import com.apexledger.core_banking.repository.RecruitTestQuestionRepository;
 import com.apexledger.core_banking.repository.RecruitTestRepository;
 import com.apexledger.core_banking.util.ApiResponse;
 import org.apache.poi.ss.usermodel.*;
@@ -28,6 +29,9 @@ public class TestService {
     @Autowired
     private RecruitTestRepository recruitTestRepository;
 
+    @Autowired
+    private RecruitTestQuestionRepository recruitTestQuestionRepository;
+
     @Transactional
     public ApiResponse<?> createTest(String testName, MultipartFile file) {
         try {
@@ -42,12 +46,19 @@ public class TestService {
                     .createdAt(LocalDateTime.now())
                     .build();
 
-
-            List<RecruitTestQuestion> questions = readQuestionsFromExcel(file, test);
-
+            //Saving Test
             RecruitTest savedTest = recruitTestRepository.save(test);
 
-            return new ApiResponse<>("SUCCESS", "Test parsed Successfully with " + questions.size() + " questions", null);
+            ParsedData extractedData = readQuestionsFromExcel(file, savedTest);
+
+            //Saving Media
+            persistImagesAndResolveTokens(extractedData.questions(), extractedData.images());
+
+            //Saving test questions
+            recruitTestQuestionRepository.saveAll(extractedData.questions());
+
+
+            return new ApiResponse<>("SUCCESS", "Test parsed Successfully with " + extractedData.questions.size() + " questions", null);
         } catch (ExcelValidationException ex){
             return new ApiResponse<>("ERROR", "Excel Validation Error", ex.getErrors());
 
@@ -56,7 +67,7 @@ public class TestService {
         }
     }
 
-    public List<RecruitTestQuestion> readQuestionsFromExcel(MultipartFile file, RecruitTest test) throws IOException {
+    public ParsedData readQuestionsFromExcel(MultipartFile file, RecruitTest test) throws IOException {
         List<String> errors = new ArrayList<>();
         List<RecruitTestQuestion> questions = new ArrayList<>();
 
@@ -75,6 +86,7 @@ public class TestService {
             for(int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++){
                 Row row = sheet.getRow(rowIndex);
 
+                //Unchecked
                 if(isRowEmpty(row, formatter) && !imagesByCell.containsKey(new CellAddress(rowIndex,1))) {
                     continue;
                 }
@@ -94,10 +106,8 @@ public class TestService {
                 throw new ExcelValidationException(errors);
             }
 
-            int imageCount = persistImagesAndResolveTokens(questions, imagesByCell);
-            System.out.println("Successfully parsed " + questions.size() + " questions and saved " + imageCount + " images.");
-
-            return questions;
+            System.out.println("Successfully parsed " + questions.size() + " questions and saved " + imagesByCell.size() + " images.");
+            return new ParsedData(questions, imagesByCell);
         }
     }
 
@@ -333,5 +343,5 @@ public class TestService {
     private record CellAddress(int row, int col) {}
     private record ExtractedImage(String extension, String contentType, byte[] data) {}
 
-
+    private record ParsedData(List<RecruitTestQuestion> questions, Map<CellAddress, ExtractedImage> images) {}
 }
