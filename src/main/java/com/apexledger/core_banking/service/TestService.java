@@ -33,6 +33,14 @@ public class TestService {
     @Autowired
     private RecruitTestQuestionRepository recruitTestQuestionRepository;
 
+    private static final String[] OBJECTIVE_HEADERS = {
+            "QUESTION_LEVEL", "QUESTION", "OPTION_A", "OPTION_B", "OPTION_C", "OPTION_D", "CORRECT_ANSWER", "QUESTION_TYPE", "MARKS"
+    };
+
+    private static final String[] SUBJECTIVE_HEADERS = {
+            "QUESTION_LEVEL", "QUESTION", "MARKS"
+    };
+
     public ApiResponse<?> getAllTestSummaries() {
         try {
             List<TestSummary> summaries = recruitTestRepository.findAllTestSummaries();
@@ -111,6 +119,25 @@ public class TestService {
         }
     }
 
+    private void validateHeaders(Row headerRow, String[] expectedHeaders) {
+        if (headerRow == null) {
+            throw new ExcelValidationException(List.of("Header row is missing."));
+        }
+
+        List<String> errors = new ArrayList<>();
+        for (int i = 0; i < expectedHeaders.length; i++) {
+            Cell cell = headerRow.getCell(i, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+            if (cell == null || cell.getCellType() != CellType.STRING ||
+                    !expectedHeaders[i].equalsIgnoreCase(cell.getStringCellValue().trim())) {
+                errors.add("Invalid header at column " + (i+1) + ". Expected: '" + expectedHeaders[i] + "'");
+            }
+        }
+
+        if (!errors.isEmpty()) {
+            throw new ExcelValidationException(errors);
+        }
+    }
+
     // ==========================================
     // OBJECTIVE PARSER
     // ==========================================
@@ -125,6 +152,8 @@ public class TestService {
             if (sheet == null || sheet.getLastRowNum() <= 0) {
                 throw new ExcelValidationException(List.of("Objective Excel file does not contain any question rows."));
             }
+
+            validateHeaders(sheet.getRow(0), OBJECTIVE_HEADERS);
 
             Map<CellAddress, ExtractedImage> imagesByCell = extractImages(sheet, errors);
 
@@ -170,12 +199,25 @@ public class TestService {
         optionC = appendImageToken(optionC, rowIndex, 4, imagesByCell);
         optionD = appendImageToken(optionD, rowIndex, 5, imagesByCell);
 
+        if (!correctAnswer.matches("^[A-D](,[A-D])*$")) {
+            errors.add("Row " + displayRow + ": Correct Answer must be A, B, C, or D (comma separated for multiple).");
+        }
+
         Double marks = 0.0;
         try {
             marks = Double.parseDouble(marksStr);
+            if (marks <= 0 ) {
+                errors.add("Row " + displayRow + ": Marks must be greater than 0.");
+            }
         } catch (NumberFormatException e) {
             errors.add("Row " + displayRow + ": Marks must be a number.");
             return null;
+        }
+
+        if (questionType.equals("boolean")) {
+            if (!optionC.isEmpty() || !optionD.isEmpty()) {
+                errors.add("Row " + displayRow + ": Boolean questions cannot have Option C or D.");
+            }
         }
 
         return RecruitTestQuestion.builder()
@@ -205,6 +247,8 @@ public class TestService {
             if (sheet == null || sheet.getLastRowNum() <= 0) {
                 throw new ExcelValidationException(List.of("Subjective Excel file does not contain any question rows."));
             }
+
+            validateHeaders(sheet.getRow(0), SUBJECTIVE_HEADERS);
 
             Map<CellAddress, ExtractedImage> imagesByCell = extractImages(sheet, errors);
 
@@ -270,8 +314,18 @@ public class TestService {
     // ==========================================
     private String getCellValue(Row row, int cellIndex, DataFormatter formatter) {
         if (row == null) return "";
+
         Cell cell = row.getCell(cellIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
-        if (cell == null || cell.getCellType() == CellType.BLANK) return "";
+        if (cell == null) return "";
+
+        // Safely evaluate formulas
+        if (cell.getCellType() == CellType.FORMULA) {
+            FormulaEvaluator evaluator = cell.getSheet().getWorkbook().getCreationHelper().createFormulaEvaluator();
+            CellValue cellValue = evaluator.evaluate(cell);
+            if (cellValue == null) return "";
+            return cellValue.formatAsString();
+        }
+
         return formatter.formatCellValue(cell).trim();
     }
 
