@@ -5,6 +5,5 @@ import java.time.LocalDateTime;
 public record TestSummary(
         Long testId,
         String testName,
-        String sourceFileName,
-        LocalDateTime createdAt
+        LocalDateTime uploadedDate
 ) {}

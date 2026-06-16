@@ -15,10 +15,10 @@ public interface RecruitTestRepository extends JpaRepository<RecruitTest, Long> 
 
     @Query("""
         SELECT new com.apexledger.core_banking.dto.TestSummary(
-            t.id, t.testName, t.sourceFileName, t.createdAt
+            t.id, t.testName, t.uploadedDate
         )
         FROM RecruitTest t
-        ORDER BY t.createdAt DESC
+        ORDER BY t.uploadedDate DESC
     """)
     List<TestSummary> findAllTestSummaries();
 

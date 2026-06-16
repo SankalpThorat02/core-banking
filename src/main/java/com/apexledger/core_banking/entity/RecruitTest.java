@@ -22,14 +22,41 @@ public class RecruitTest {
     @Column(name = "TEST_ID")
     private Long id;
 
+    @Column(name = "DESIGNATION_ID")
+    private Long designationId;
+
+    @Column(name = "TOTAL_APPEARED_QUESTIONS")
+    private Integer totalAppearedQuestions;
+
+    @Column(name = "UPLOADED_BY", length = 100)
+    private String uploadedBy;
+
+    @Column(name = "UPLOADED_DATE")
+    private LocalDateTime uploadedDate;
+
     @Column(name = "TEST_NAME", nullable = false, length = 200)
     private String testName;
 
-    @Column(name = "SOURCE_FILE_NAME", length = 255)
-    private String sourceFileName;
+    @Column(name = "TEST_PASSING_PERCENTAGE")
+    private Double testPassingPercentage;
 
-    @Column(name = "CREATED_AT")
-    private LocalDateTime createdAt;
+    @Column(name = "TEST_TYPE", length = 50)
+    private String testType;
+
+    @Column(name = "TOTAL_SUBJECTIVE_QUESTIONS")
+    private Integer totalSubjectiveQuestions;
+
+    @Column(name = "TOTAL_OBJECTIVE_QUESTIONS")
+    private Integer totalObjectiveQuestions;
+
+    @Column(name = "OBJECTIVE_PASSING_PERCENTAGE")
+    private Double objectivePassingPercentage;
+
+    @Column(name = "SUBJECTIVE_PASSING_PERCENTAGE")
+    private Double subjectivePassingPercentage;
+
+//    @Transient
+//    private String sourceFileName;
 
     @OneToMany(mappedBy = "test", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

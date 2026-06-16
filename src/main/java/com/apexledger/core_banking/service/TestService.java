@@ -1,5 +1,6 @@
 package com.apexledger.core_banking.service;
 
+import com.apexledger.core_banking.dto.CreateTestRequest;
 import com.apexledger.core_banking.dto.TestSummary;
 import com.apexledger.core_banking.entity.MediaMaster;
 import com.apexledger.core_banking.entity.RecruitTest;
@@ -65,10 +66,10 @@ public class TestService {
     }
 
     @Transactional
-    public ApiResponse<?> createTest(String testName, MultipartFile file, MultipartFile subjectiveFile) {
+    public ApiResponse<?> createTest(CreateTestRequest request, MultipartFile objectiveFile, MultipartFile subjectiveFile) {
         try {
             // 1. Ensure at least one file is uploaded
-            boolean hasObjective = file != null && !file.isEmpty();
+            boolean hasObjective = objectiveFile != null && !objectiveFile.isEmpty();
             boolean hasSubjective = subjectiveFile != null && !subjectiveFile.isEmpty();
 
             if (!hasObjective && !hasSubjective) {
@@ -76,13 +77,19 @@ public class TestService {
             }
 
             // 2. Resolve Test Name based on whichever file is present
-            String originalFileName = hasObjective ? file.getOriginalFilename() : subjectiveFile.getOriginalFilename();
-            String finalTestName = resolveTestName(testName, originalFileName);
+            String originalFileName = hasObjective ? objectiveFile.getOriginalFilename() : subjectiveFile.getOriginalFilename();
+            String finalTestName = resolveTestName(request.getTestName(), originalFileName);
 
             RecruitTest test = RecruitTest.builder()
                     .testName(finalTestName)
-                    .sourceFileName(originalFileName)
-                    .createdAt(LocalDateTime.now())
+                    .designationId(request.getDesignationId())
+                    .uploadedBy(request.getUploadedBy())
+                    .testType(request.getTestType())
+                    .testPassingPercentage(request.getTestPassingPercentage())
+                    .objectivePassingPercentage(request.getObjectivePassingPercentage())
+                    .subjectivePassingPercentage(request.getSubjectivePassingPercentage())
+//                    .sourceFileName(originalFileName)
+                    .uploadedDate(LocalDateTime.now())
                     .build();
 
             // 3. Save Parent Test
@@ -90,13 +97,16 @@ public class TestService {
 
             // Master list to hold all questions before saving to DB
             List<RecruitTestQuestion> allQuestions = new ArrayList<>();
+            int objCount = 0;
+            int subCount = 0;
 
             // 4. Process Objective File (If Present)
             if (hasObjective) {
-                validateUploadFile(file);
-                ParsedData objData = parseObjectiveExcelFile(file, savedTest);
+                validateUploadFile(objectiveFile);
+                ParsedData objData = parseObjectiveExcelFile(objectiveFile, savedTest);
                 persistImagesAndResolveTokens(objData.questions(), objData.images());
                 allQuestions.addAll(objData.questions());
+                objCount = objData.questions().size();
             }
 
             // 5. Process Subjective File (If Present)
@@ -105,7 +115,15 @@ public class TestService {
                 ParsedData subData = parseSubjectiveExcelFile(subjectiveFile, savedTest);
                 persistImagesAndResolveTokens(subData.questions(), subData.images());
                 allQuestions.addAll(subData.questions());
+                subCount = subData.questions().size();
             }
+
+            savedTest.setTotalObjectiveQuestions(objCount);
+            savedTest.setTotalSubjectiveQuestions(subCount);
+            savedTest.setTotalAppearedQuestions(objCount + subCount);
+
+            // Update the test with the final counts
+            recruitTestRepository.save(savedTest);
 
             // 6. Save all questions (Grandchildren)
             recruitTestQuestionRepository.saveAll(allQuestions);

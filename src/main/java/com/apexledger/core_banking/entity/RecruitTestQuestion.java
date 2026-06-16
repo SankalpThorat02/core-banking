@@ -42,7 +42,7 @@ public class RecruitTestQuestion {
     @Column(name = "OPTION_D", length = 4000)
     private String optionD;
 
-    @Column(name = "CORRECT_ANSWER", nullable = false, length = 10)
+    @Column(name = "CORRECT_ANSWER", length = 10)
     private String correctAnswer;
 
     @Column(name = "QUESTION_TYPE", nullable = false, length = 20)

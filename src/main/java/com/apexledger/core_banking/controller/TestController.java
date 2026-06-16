@@ -1,5 +1,6 @@
 package com.apexledger.core_banking.controller;
 
+import com.apexledger.core_banking.dto.CreateTestRequest;
 import com.apexledger.core_banking.service.TestService;
 import com.apexledger.core_banking.util.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,26 +18,16 @@ public class TestController {
 
     @PostMapping(value = "/create-test", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<?>> createTest(
-            @RequestParam(value = "testName", required = false) String testName,
-            @RequestParam(value = "subjective", required = false) MultipartFile subjectiveFile,
-            @RequestParam(value = "objective", required = false) MultipartFile objectiveFile) {
+            @ModelAttribute CreateTestRequest request,
+            @RequestPart(value = "objectiveFile", required = false) MultipartFile objectiveFile,
+            @RequestPart(value = "subjectiveFile", required = false) MultipartFile subjectiveFile) {
 
-        boolean hasObjective =  objectiveFile != null && !objectiveFile.isEmpty();
-        boolean hasSubjective =  subjectiveFile != null && !subjectiveFile.isEmpty();
+        ApiResponse<?> response = testService.createTest(request, objectiveFile, subjectiveFile);
 
-        if (!hasObjective && !hasSubjective) {
-            return ResponseEntity.badRequest().body(
-                    new ApiResponse<>("ERROR", "Please upload at least one test file (Objective or Subjective).", null)
-            );
+        if ("ERROR".equals(response.getStatus())) {
+            return ResponseEntity.badRequest().body(response);
         }
-
-        ApiResponse<?> response = testService.createTest(testName, objectiveFile, subjectiveFile);
-
-        if ("SUCCESS".equalsIgnoreCase(response.getStatus())) {
-            return ResponseEntity.ok(response);
-        }
-
-        return ResponseEntity.badRequest().body(response);
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping
