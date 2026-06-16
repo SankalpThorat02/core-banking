@@ -34,6 +34,9 @@ public class TestService {
     @Autowired
     private RecruitTestQuestionRepository recruitTestQuestionRepository;
 
+    @Autowired
+    private AssessmentQueryService assessmentQueryService;
+
     private static final String[] OBJECTIVE_HEADERS = {
             "QUESTION_LEVEL", "QUESTION", "OPTION_A", "OPTION_B", "OPTION_C", "OPTION_D", "CORRECT_ANSWER", "QUESTION_TYPE", "MARKS"
     };
@@ -93,7 +96,7 @@ public class TestService {
                     .build();
 
             // 3. Save Parent Test
-            RecruitTest savedTest = recruitTestRepository.save(test);
+            RecruitTest savedTest = recruitTestRepository.saveAndFlush(test);
 
             // Master list to hold all questions before saving to DB
             List<RecruitTestQuestion> allQuestions = new ArrayList<>();
@@ -126,7 +129,11 @@ public class TestService {
             recruitTestRepository.save(savedTest);
 
             // 6. Save all questions (Grandchildren)
-            recruitTestQuestionRepository.saveAll(allQuestions);
+            Long parentTestId = savedTest.getId();
+
+            for (RecruitTestQuestion question : allQuestions) {
+                assessmentQueryService.saveQuestionProcedure(parentTestId, question);
+            }
 
             return new ApiResponse<>("SUCCESS", "Test parsed Successfully with " + allQuestions.size() + " total questions", null);
 
