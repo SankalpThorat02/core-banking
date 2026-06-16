@@ -33,87 +33,100 @@ public class TestService {
     private RecruitTestQuestionRepository recruitTestQuestionRepository;
 
     @Transactional
-    public ApiResponse<?> createTest(String testName, MultipartFile file) {
+    public ApiResponse<?> createTest(String testName, MultipartFile file, MultipartFile subjectiveFile) {
         try {
-            //1. Validate file
-            validateUploadFile(file);
+            // 1. Ensure at least one file is uploaded
+            boolean hasObjective = file != null && !file.isEmpty();
+            boolean hasSubjective = subjectiveFile != null && !subjectiveFile.isEmpty();
 
-            String finalTestName = resolveTestName(testName, file.getOriginalFilename());
+            if (!hasObjective && !hasSubjective) {
+                return new ApiResponse<>("ERROR", "Please upload at least one test file (Objective or Subjective).", null);
+            }
+
+            // 2. Resolve Test Name based on whichever file is present
+            String originalFileName = hasObjective ? file.getOriginalFilename() : subjectiveFile.getOriginalFilename();
+            String finalTestName = resolveTestName(testName, originalFileName);
 
             RecruitTest test = RecruitTest.builder()
                     .testName(finalTestName)
-                    .sourceFileName(file.getOriginalFilename())
+                    .sourceFileName(originalFileName)
                     .createdAt(LocalDateTime.now())
                     .build();
 
-            //Saving Test
+            // 3. Save Parent Test
             RecruitTest savedTest = recruitTestRepository.save(test);
 
-            ParsedData extractedData = readQuestionsFromExcel(file, savedTest);
+            // Master list to hold all questions before saving to DB
+            List<RecruitTestQuestion> allQuestions = new ArrayList<>();
 
-            //Saving Media
-            persistImagesAndResolveTokens(extractedData.questions(), extractedData.images());
+            // 4. Process Objective File (If Present)
+            if (hasObjective) {
+                validateUploadFile(file);
+                ParsedData objData = parseObjectiveExcelFile(file, savedTest);
+                persistImagesAndResolveTokens(objData.questions(), objData.images());
+                allQuestions.addAll(objData.questions());
+            }
 
-            //Saving test questions
-            recruitTestQuestionRepository.saveAll(extractedData.questions());
+            // 5. Process Subjective File (If Present)
+            if (hasSubjective) {
+                validateUploadFile(subjectiveFile);
+                ParsedData subData = parseSubjectiveExcelFile(subjectiveFile, savedTest);
+                persistImagesAndResolveTokens(subData.questions(), subData.images());
+                allQuestions.addAll(subData.questions());
+            }
 
+            // 6. Save all questions (Grandchildren)
+            recruitTestQuestionRepository.saveAll(allQuestions);
 
-            return new ApiResponse<>("SUCCESS", "Test parsed Successfully with " + extractedData.questions.size() + " questions", null);
-        } catch (ExcelValidationException ex){
+            return new ApiResponse<>("SUCCESS", "Test parsed Successfully with " + allQuestions.size() + " total questions", null);
+
+        } catch (ExcelValidationException ex) {
             return new ApiResponse<>("ERROR", "Excel Validation Error", ex.getErrors());
-
         } catch (Exception ex) {
             return new ApiResponse<>("ERROR", "An unexpected error occurred: " + ex.getMessage(), null);
         }
     }
 
-    public ParsedData readQuestionsFromExcel(MultipartFile file, RecruitTest test) throws IOException {
+    // ==========================================
+    // OBJECTIVE PARSER
+    // ==========================================
+    public ParsedData parseObjectiveExcelFile(MultipartFile file, RecruitTest test) throws IOException {
         List<String> errors = new ArrayList<>();
         List<RecruitTestQuestion> questions = new ArrayList<>();
 
-        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())){
+        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
             Sheet sheet = workbook.getSheetAt(0);
-
             DataFormatter formatter = new DataFormatter();
 
-            if(sheet == null || sheet.getLastRowNum() <= 0){
-                throw new ExcelValidationException(List.of("Excel file does not contain any question rows."));
-
+            if (sheet == null || sheet.getLastRowNum() <= 0) {
+                throw new ExcelValidationException(List.of("Objective Excel file does not contain any question rows."));
             }
 
             Map<CellAddress, ExtractedImage> imagesByCell = extractImages(sheet, errors);
 
-            for(int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++){
+            for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
                 Row row = sheet.getRow(rowIndex);
 
-                //Unchecked
-                if(isRowEmpty(row, formatter) && !imagesByCell.containsKey(new CellAddress(rowIndex,1))) {
+                if (isRowEmpty(row, formatter, 8) && !imagesByCell.containsKey(new CellAddress(rowIndex, 1))) {
                     continue;
                 }
 
-                RecruitTestQuestion question = mapQuestion(row, rowIndex, formatter, imagesByCell, errors);
-                if(question != null) {
-                   test.addQuestions(question);
+                RecruitTestQuestion question = mapObjectiveQuestion(row, rowIndex, formatter, imagesByCell, errors);
+                if (question != null) {
+                    question.setTest(test); // Link to parent
                     questions.add(question);
                 }
             }
 
-            if(questions.isEmpty() && errors.isEmpty()){
-                errors.add("Excel file does not contain any valid questions.");
-            }
+            if (!errors.isEmpty()) throw new ExcelValidationException(errors);
 
-            if(!errors.isEmpty()){
-                throw new ExcelValidationException(errors);
-            }
-
-            System.out.println("Successfully parsed " + questions.size() + " questions and saved " + imagesByCell.size() + " images.");
+            System.out.println("Successfully extracted " + questions.size() + " objective questions.");
             return new ParsedData(questions, imagesByCell);
         }
     }
 
-    private RecruitTestQuestion mapQuestion(Row row, int rowIndex, DataFormatter formatter, Map<CellAddress, ExtractedImage> imagesByCell, List<String> errors) {
-
-        int displayRow = rowIndex + 1;  // For user-friendly error message
+    private RecruitTestQuestion mapObjectiveQuestion(Row row, int rowIndex, DataFormatter formatter, Map<CellAddress, ExtractedImage> imagesByCell, List<String> errors) {
+        int displayRow = rowIndex + 1;
 
         String questionText = getCellValue(row, 1, formatter);
         String optionA = getCellValue(row, 2, formatter);
@@ -151,10 +164,82 @@ public class TestService {
                 .build();
     }
 
-    private String getCellValue(Row row, int cellIndex, DataFormatter formatter) {
-        if (row == null)
-            return "";
+    // ==========================================
+    // SUBJECTIVE PARSER
+    // ==========================================
+    public ParsedData parseSubjectiveExcelFile(MultipartFile file, RecruitTest test) throws IOException {
+        List<String> errors = new ArrayList<>();
+        List<RecruitTestQuestion> questions = new ArrayList<>();
 
+        try (Workbook workbook = new XSSFWorkbook(file.getInputStream())) {
+            Sheet sheet = workbook.getSheetAt(0);
+            DataFormatter formatter = new DataFormatter();
+
+            if (sheet == null || sheet.getLastRowNum() <= 0) {
+                throw new ExcelValidationException(List.of("Subjective Excel file does not contain any question rows."));
+            }
+
+            Map<CellAddress, ExtractedImage> imagesByCell = extractImages(sheet, errors);
+
+            for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
+                Row row = sheet.getRow(rowIndex);
+
+                // Assuming Subjective only uses up to column 2 (Question, Marks)
+                if (isRowEmpty(row, formatter, 2) && !imagesByCell.containsKey(new CellAddress(rowIndex, 1))) {
+                    continue;
+                }
+
+                RecruitTestQuestion question = mapSubjectiveQuestion(row, rowIndex, formatter, imagesByCell, errors);
+                if (question != null) {
+                    question.setTest(test); // Link to parent
+                    questions.add(question);
+                }
+            }
+
+            if (!errors.isEmpty()) throw new ExcelValidationException(errors);
+
+            System.out.println("Successfully extracted " + questions.size() + " subjective questions.");
+            return new ParsedData(questions, imagesByCell);
+        }
+    }
+
+    private RecruitTestQuestion mapSubjectiveQuestion(Row row, int rowIndex, DataFormatter formatter, Map<CellAddress, ExtractedImage> imagesByCell, List<String> errors) {
+        int displayRow = rowIndex + 1;
+
+        // Assuming Column 1 is Question, Column 2 is Marks for Subjective
+        String questionText = getCellValue(row, 1, formatter);
+        String marksStr = getCellValue(row, 2, formatter);
+
+        questionText = appendImageToken(questionText, rowIndex, 1, imagesByCell);
+
+        Double marks = 0.0;
+        try {
+            if (!marksStr.isEmpty()) {
+                marks = Double.parseDouble(marksStr);
+            }
+        } catch (NumberFormatException e) {
+            errors.add("Row " + displayRow + ": Marks must be a number.");
+            return null;
+        }
+
+        return RecruitTestQuestion.builder()
+                .rowNo(displayRow)
+                .question(questionText)
+                .optionA(null)        // Forced to Null
+                .optionB(null)        // Forced to Null
+                .optionC(null)        // Forced to Null
+                .optionD(null)        // Forced to Null
+                .correctAnswer("[]")  // Empty array representation
+                .questionType("subjective")
+                .marks(marks)
+                .build();
+    }
+
+    // ==========================================
+    // UTILITIES
+    // ==========================================
+    private String getCellValue(Row row, int cellIndex, DataFormatter formatter) {
+        if (row == null) return "";
         Cell cell = row.getCell(cellIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
         if (cell == null || cell.getCellType() == CellType.BLANK) return "";
         return formatter.formatCellValue(cell).trim();
@@ -173,29 +258,23 @@ public class TestService {
         return text + " \n " + token;
     }
 
-    private boolean isRowEmpty(Row row, DataFormatter formatter) {
-        if (row == null)
-            return true;
-
-        for (int i = 0; i <= 8; i++) {
+    // Updated to accept how many columns to check so it works for both Obj and Sub files
+    private boolean isRowEmpty(Row row, DataFormatter formatter, int columnsToCheck) {
+        if (row == null) return true;
+        for (int i = 0; i <= columnsToCheck; i++) {
             if (!getCellValue(row, i, formatter).isEmpty()) return false;
         }
         return true;
     }
 
-
-    //Save images and Swap tokens
-    private int persistImagesAndResolveTokens(List<RecruitTestQuestion> questions,
-                                              Map<CellAddress, ExtractedImage> imagesByCell) {
-
+    private int persistImagesAndResolveTokens(List<RecruitTestQuestion> questions, Map<CellAddress, ExtractedImage> imagesByCell) {
         Map<CellAddress, String> realTokens = new HashMap<>();
 
-        for(Map.Entry<CellAddress, ExtractedImage> entry : imagesByCell.entrySet()) {
+        for (Map.Entry<CellAddress, ExtractedImage> entry : imagesByCell.entrySet()) {
             CellAddress address = entry.getKey();
             ExtractedImage image = entry.getValue();
 
-            String generatedFileName = String.format("excel-img-r%d-c%d.%s",
-                    (address.row() + 1), (address.col() + 1), image.extension());
+            String generatedFileName = String.format("excel-img-r%d-c%d.%s", (address.row() + 1), (address.col() + 1), image.extension());
 
             MediaMaster media = MediaMaster.builder()
                     .fileName(generatedFileName)
@@ -206,12 +285,10 @@ public class TestService {
                     .build();
 
             media = mediaMasterRepository.save(media);
-
-            String finalToken = "[[IMG:" + media.getId() + "]]";
-            realTokens.put(address, finalToken);
+            realTokens.put(address, "[[IMG:" + media.getId() + "]]");
         }
 
-        for(RecruitTestQuestion question : questions) {
+        for (RecruitTestQuestion question : questions) {
             question.setQuestion(swapTempTokens(question.getQuestion(), realTokens));
             question.setOptionA(swapTempTokens(question.getOptionA(), realTokens));
             question.setOptionB(swapTempTokens(question.getOptionB(), realTokens));
@@ -223,98 +300,64 @@ public class TestService {
     }
 
     private String swapTempTokens(String text, Map<CellAddress, String> realTokens) {
-        if(text == null || text.trim().isEmpty()) {
-            return text;
-        }
+        if (text == null || text.trim().isEmpty()) return text;
 
         String resolvedText = text;
-
         for (Map.Entry<CellAddress, String> entry : realTokens.entrySet()) {
-            CellAddress address = entry.getKey();
-            String realToken = entry.getValue();
-
-            String tmpToken = String.format("[[IMG_TMP:%d:%d]]", address.row(), address.col());
-
+            String tmpToken = String.format("[[IMG_TMP:%d:%d]]", entry.getKey().row(), entry.getKey().col());
             if (resolvedText.contains(tmpToken)) {
-                resolvedText = resolvedText.replace(tmpToken, realToken);
+                resolvedText = resolvedText.replace(tmpToken, entry.getValue());
             }
         }
-
         return resolvedText;
-
-
     }
 
     private String resolveTestName(String providedName, String fileName) {
-        if(providedName != null && !providedName.trim().isEmpty()) {
-            return providedName.trim();
-        }
-
-        if(fileName == null) {
-            return "Uploaded Test - " + LocalDateTime.now();
-        }
-
+        if (providedName != null && !providedName.trim().isEmpty()) return providedName.trim();
+        if (fileName == null) return "Uploaded Test - " + LocalDateTime.now();
         return fileName.replaceAll("(?i)\\.xlsx?$", "");
     }
 
-    // Check for extensions and if file empty
     public void validateUploadFile(MultipartFile file) {
-
         if (file == null || file.isEmpty() || file.getOriginalFilename() == null) {
             throw new ExcelValidationException(List.of("Excel file is required"));
         }
-
         String fileName = file.getOriginalFilename().toLowerCase(Locale.ROOT);
         if (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls")) {
             throw new ExcelValidationException(List.of("Only .xlsx or .xls files are supported"));
         }
     }
 
-    //Extract Images from file
     private Map<CellAddress, ExtractedImage> extractImages(Sheet sheet, List<String> errors) {
         Map<CellAddress, ExtractedImage> imagesByCell = new HashMap<>();
 
-        if(!(sheet instanceof XSSFSheet xssfSheet)) {
-            return imagesByCell;
-        }
+        if (!(sheet instanceof XSSFSheet xssfSheet)) return imagesByCell;
 
         XSSFDrawing drawing = xssfSheet.getDrawingPatriarch();
-        if(drawing == null) {
-            return imagesByCell;
-        }
+        if (drawing == null) return imagesByCell;
 
-        for(XSSFShape shape : drawing.getShapes()) {
-            if(!(shape instanceof XSSFPicture picture)) {
-                continue;
-            }
+        for (XSSFShape shape : drawing.getShapes()) {
+            if (!(shape instanceof XSSFPicture picture)) continue;
 
             XSSFClientAnchor anchor = (XSSFClientAnchor) picture.getClientAnchor();
-
             int row = anchor.getRow1();
             int col = anchor.getCol1();
-            int displayRow = row + 1; // For user-friendly error messages (Row 0 is Row 1 to users)
+            int displayRow = row + 1;
 
-
-            // -------- Validations ---------
-            //Image cell validation
-            if(anchor.getRow1() != anchor.getRow2() || anchor.getCol1() != anchor.getCol2()) {
+            if (anchor.getRow1() != anchor.getRow2() || anchor.getCol1() != anchor.getCol2()) {
                 errors.add("Row " + displayRow + ": Image overlaps multiple cells. Please resize it to fit exactly inside its cell.");
                 continue;
             }
 
-            //Multiple Images in one cell validation
             CellAddress address = new CellAddress(row, col);
-            if(imagesByCell.containsKey(address)) {
+            if (imagesByCell.containsKey(address)) {
                 errors.add("Row " + displayRow + ": Multiple images found in the same cell. Please use only one image per cell.");
                 continue;
             }
 
             XSSFPictureData pictureData = picture.getPictureData();
             String extension = pictureData.suggestFileExtension().toLowerCase(Locale.ROOT);
-            byte[] data = pictureData.getData();
-            String contentType = resolveContentType(extension);
-
-            imagesByCell.put(address, new ExtractedImage(extension, contentType, data));
+            imagesByCell.put(address, new ExtractedImage(extension, resolveContentType(extension), pictureData.getData()));
         }
 
         return imagesByCell;
@@ -328,20 +371,14 @@ public class TestService {
 
     private static final class ExcelValidationException extends RuntimeException {
         private final List<String> errors;
-
         private ExcelValidationException(List<String> errors) {
             super(errors.stream().collect(Collectors.joining(", ")));
             this.errors = errors;
         }
-
-        private List<String> getErrors() {
-            return errors;
-        }
+        private List<String> getErrors() { return errors; }
     }
-
 
     private record CellAddress(int row, int col) {}
     private record ExtractedImage(String extension, String contentType, byte[] data) {}
-
     private record ParsedData(List<RecruitTestQuestion> questions, Map<CellAddress, ExtractedImage> images) {}
 }

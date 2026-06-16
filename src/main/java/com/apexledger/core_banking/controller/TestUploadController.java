@@ -23,8 +23,17 @@ public class TestUploadController {
             @RequestParam(value = "testName", required = false) String testName,
             @RequestParam(value = "subjective", required = false) MultipartFile subjectiveFile,
             @RequestParam(value = "objective", required = false) MultipartFile objectiveFile) {
-        MultipartFile uploadFile = subjectiveFile != null ? subjectiveFile : objectiveFile;
-        ApiResponse<?> response = testService.createTest(testName, uploadFile);
+
+        boolean hasObjective =  objectiveFile != null && !objectiveFile.isEmpty();
+        boolean hasSubjective =  subjectiveFile != null && !subjectiveFile.isEmpty();
+
+        if (!hasObjective && !hasSubjective) {
+            return ResponseEntity.badRequest().body(
+                    new ApiResponse<>("ERROR", "Please upload at least one test file (Objective or Subjective).", null)
+            );
+        }
+
+        ApiResponse<?> response = testService.createTest(testName, objectiveFile, subjectiveFile);
 
         if ("SUCCESS".equalsIgnoreCase(response.getStatus())) {
             return ResponseEntity.ok(response);
