@@ -5,15 +5,12 @@ import com.apexledger.core_banking.util.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/test")
-public class TestUploadController {
+public class TestController {
 
     @Autowired
     private TestService testService;
@@ -40,5 +37,23 @@ public class TestUploadController {
         }
 
         return ResponseEntity.badRequest().body(response);
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<?>> getAllTests() {
+        ApiResponse<?> response = testService.getAllTestSummaries();
+        if ("ERROR".equals(response.getStatus())) {
+            return ResponseEntity.badRequest().body(response);
+        }
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{testId}")
+    public ResponseEntity<ApiResponse<?>> getTestDetails(@PathVariable Long testId) {
+        ApiResponse<?> response = testService.getTestDetails(testId);
+        if ("ERROR".equals(response.getStatus())) {
+            return ResponseEntity.badRequest().body(response);
+        }
+        return ResponseEntity.ok(response);
     }
 }

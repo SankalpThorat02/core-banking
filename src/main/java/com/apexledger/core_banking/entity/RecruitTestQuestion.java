@@ -1,5 +1,6 @@
 package com.apexledger.core_banking.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -19,11 +20,12 @@ public class RecruitTestQuestion {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "TEST_ID", nullable = false)
+    @JsonIgnore
     private RecruitTest test;
 
     // --- Excel Data Columns ---
-    @Column(name = "ROW_NO")
-    private Integer rowNo;
+    @Column(name = "QUESTION_LEVEL")
+    private String questionLevel;
 
     @Column(name = "QUESTION", length = 4000)
     private String question;

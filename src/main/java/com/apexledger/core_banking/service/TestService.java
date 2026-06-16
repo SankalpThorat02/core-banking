@@ -1,5 +1,6 @@
 package com.apexledger.core_banking.service;
 
+import com.apexledger.core_banking.dto.TestSummary;
 import com.apexledger.core_banking.entity.MediaMaster;
 import com.apexledger.core_banking.entity.RecruitTest;
 import com.apexledger.core_banking.entity.RecruitTestQuestion;
@@ -31,6 +32,29 @@ public class TestService {
 
     @Autowired
     private RecruitTestQuestionRepository recruitTestQuestionRepository;
+
+    public ApiResponse<?> getAllTestSummaries() {
+        try {
+            List<TestSummary> summaries = recruitTestRepository.findAllTestSummaries();
+            return new ApiResponse<>("SUCCESS", "Fetched " + summaries.size() + " tests", summaries);
+        } catch (Exception e) {
+            return new ApiResponse<>("ERROR", "Failed to fetch tests: " + e.getMessage(), null);
+        }
+    }
+
+    public ApiResponse<?> getTestDetails(Long testId) {
+        try {
+            Optional<RecruitTest> testOpt = recruitTestRepository.findByIdWithQuestions(testId);
+
+            if (testOpt.isEmpty()) {
+                return new ApiResponse<>("ERROR", "Test not found with ID: " + testId, null);
+            }
+
+            return new ApiResponse<>("SUCCESS", "Test details fetched successfully", testOpt.get());
+        } catch (Exception e) {
+            return new ApiResponse<>("ERROR", "Failed to fetch test details: " + e.getMessage(), null);
+        }
+    }
 
     @Transactional
     public ApiResponse<?> createTest(String testName, MultipartFile file, MultipartFile subjectiveFile) {
@@ -128,6 +152,9 @@ public class TestService {
     private RecruitTestQuestion mapObjectiveQuestion(Row row, int rowIndex, DataFormatter formatter, Map<CellAddress, ExtractedImage> imagesByCell, List<String> errors) {
         int displayRow = rowIndex + 1;
 
+        String levelStr = getCellValue(row, 0, formatter);
+        String questionLevel = levelStr.isEmpty() ? "M" : levelStr.substring(0, 1).toUpperCase(Locale.ROOT);
+
         String questionText = getCellValue(row, 1, formatter);
         String optionA = getCellValue(row, 2, formatter);
         String optionB = getCellValue(row, 3, formatter);
@@ -152,7 +179,7 @@ public class TestService {
         }
 
         return RecruitTestQuestion.builder()
-                .rowNo(displayRow)
+                .questionLevel(questionLevel)
                 .question(questionText)
                 .optionA(optionA)
                 .optionB(optionB)
@@ -206,6 +233,9 @@ public class TestService {
     private RecruitTestQuestion mapSubjectiveQuestion(Row row, int rowIndex, DataFormatter formatter, Map<CellAddress, ExtractedImage> imagesByCell, List<String> errors) {
         int displayRow = rowIndex + 1;
 
+        String levelStr = getCellValue(row, 0, formatter);
+        String questionLevel = levelStr.isEmpty() ? "M" : levelStr.substring(0, 1).toUpperCase(Locale.ROOT);
+
         // Assuming Column 1 is Question, Column 2 is Marks for Subjective
         String questionText = getCellValue(row, 1, formatter);
         String marksStr = getCellValue(row, 2, formatter);
@@ -223,13 +253,13 @@ public class TestService {
         }
 
         return RecruitTestQuestion.builder()
-                .rowNo(displayRow)
+                .questionLevel(questionLevel)
                 .question(questionText)
                 .optionA(null)        // Forced to Null
                 .optionB(null)        // Forced to Null
                 .optionC(null)        // Forced to Null
                 .optionD(null)        // Forced to Null
-                .correctAnswer("[]")  // Empty array representation
+                .correctAnswer(null)  // Forced to Null
                 .questionType("subjective")
                 .marks(marks)
                 .build();
@@ -255,7 +285,7 @@ public class TestService {
             return token;
         }
 
-        return text + " \n " + token;
+        return token + " \n " + text;
     }
 
     // Updated to accept how many columns to check so it works for both Obj and Sub files
