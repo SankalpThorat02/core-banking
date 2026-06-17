@@ -83,20 +83,6 @@ public class TestService {
             String originalFileName = hasObjective ? objectiveFile.getOriginalFilename() : subjectiveFile.getOriginalFilename();
             String finalTestName = resolveTestName(request.getTestName(), originalFileName);
 
-            RecruitTest test = RecruitTest.builder()
-                    .testName(finalTestName)
-                    .designationId(request.getDesignationId())
-                    .uploadedBy(request.getUploadedBy())
-                    .testType(request.getTestType())
-                    .testPassingPercentage(request.getTestPassingPercentage())
-                    .objectivePassingPercentage(request.getObjectivePassingPercentage())
-                    .subjectivePassingPercentage(request.getSubjectivePassingPercentage())
-//                    .sourceFileName(originalFileName)
-                    .uploadedDate(LocalDateTime.now())
-                    .build();
-
-            // 3. Save Parent Test
-            RecruitTest savedTest = recruitTestRepository.saveAndFlush(test);
 
             // Master list to hold all questions before saving to DB
             List<RecruitTestQuestion> allQuestions = new ArrayList<>();
@@ -106,33 +92,35 @@ public class TestService {
             // 4. Process Objective File (If Present)
             if (hasObjective) {
                 validateUploadFile(objectiveFile);
-                ParsedData objData = parseObjectiveExcelFile(objectiveFile, savedTest);
+
+                ParsedData objData = parseObjectiveExcelFile(objectiveFile, null);
+
                 persistImagesAndResolveTokens(objData.questions(), objData.images());
                 allQuestions.addAll(objData.questions());
+
                 objCount = objData.questions().size();
             }
 
             // 5. Process Subjective File (If Present)
             if (hasSubjective) {
                 validateUploadFile(subjectiveFile);
-                ParsedData subData = parseSubjectiveExcelFile(subjectiveFile, savedTest);
+
+                ParsedData subData = parseSubjectiveExcelFile(subjectiveFile, null);
+
                 persistImagesAndResolveTokens(subData.questions(), subData.images());
                 allQuestions.addAll(subData.questions());
+
                 subCount = subData.questions().size();
             }
 
-            savedTest.setTotalObjectiveQuestions(objCount);
-            savedTest.setTotalSubjectiveQuestions(subCount);
-            savedTest.setTotalAppearedQuestions(objCount + subCount);
+            int totalAppeared = objCount + subCount;
 
-            // Update the test with the final counts
-            recruitTestRepository.save(savedTest);
-
-            // 6. Save all questions (Grandchildren)
-            Long parentTestId = savedTest.getId();
+            Long TestId = assessmentQueryService.saveTestDetailsProcedure(
+                    request, finalTestName, totalAppeared, objCount, subCount
+            );
 
             for (RecruitTestQuestion question : allQuestions) {
-                assessmentQueryService.saveQuestionProcedure(parentTestId, question);
+                assessmentQueryService.saveQuestionProcedure(TestId, question);
             }
 
             return new ApiResponse<>("SUCCESS", "Test parsed Successfully with " + allQuestions.size() + " total questions", null);

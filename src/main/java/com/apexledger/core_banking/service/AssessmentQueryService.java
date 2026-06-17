@@ -1,5 +1,6 @@
 package com.apexledger.core_banking.service;
 
+import com.apexledger.core_banking.dto.CreateTestRequest;
 import com.apexledger.core_banking.entity.RecruitTestQuestion;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.ParameterMode;
@@ -58,6 +59,52 @@ public class AssessmentQueryService {
         } catch (Exception e) {
             // Rethrowing an explicit exception ensures @Transactional flags trigger a complete rollback
             throw new RuntimeException("Database execution failed for question. Details: " + e.getMessage(), e);
+        }
+    }
+
+    public Long saveTestDetailsProcedure(CreateTestRequest request, String finalTestName, int totalAppeared, int objCount, int subCount) {
+        StoredProcedureQuery query = entityManager.createStoredProcedureQuery("USP_SANKALP_ASSESSMENT_ENTRY");
+
+        // 1. Register Parameters
+        query.registerStoredProcedureParameter("P_DESIGNATION_ID", Long.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("P_TOTAL_APPEARED_QUESTIONS", Integer.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("P_UPLOADED_BY", String.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("P_TEST_NAME", String.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("P_TEST_PASSING_PERCENTAGE", Double.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("P_TOTAL_OBJECTIVE_QUESTIONS", Integer.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("P_TOTAL_SUBJECTIVE_QUESTIONS", Integer.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("P_TEST_TYPE", String.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("P_OBJECTIVE_PASSING_PERCENTAGE", Double.class, ParameterMode.IN);
+        query.registerStoredProcedureParameter("P_SUBJECTIVE_PASS_PERCENTAGE", Double.class, ParameterMode.IN);
+
+        query.registerStoredProcedureParameter("O_TEST_ID", Long.class, ParameterMode.OUT);
+        query.registerStoredProcedureParameter("O_STATUS_MESSAGE", String.class, ParameterMode.OUT);
+
+        // 2. Set Parameters
+        query.setParameter("P_DESIGNATION_ID", request.getDesignationId());
+        query.setParameter("P_TOTAL_APPEARED_QUESTIONS", totalAppeared);
+        query.setParameter("P_UPLOADED_BY", request.getUploadedBy());
+        query.setParameter("P_TEST_NAME", finalTestName);
+        query.setParameter("P_TEST_PASSING_PERCENTAGE", request.getTestPassingPercentage());
+        query.setParameter("P_TOTAL_OBJECTIVE_QUESTIONS", objCount);
+        query.setParameter("P_TOTAL_SUBJECTIVE_QUESTIONS", subCount);
+        query.setParameter("P_TEST_TYPE", request.getTestType());
+        query.setParameter("P_OBJECTIVE_PASSING_PERCENTAGE", request.getObjectivePassingPercentage());
+        query.setParameter("P_SUBJECTIVE_PASS_PERCENTAGE", request.getSubjectivePassingPercentage());
+
+        // 3. Execute
+        try {
+            query.execute();
+            String statusMessage = (String) query.getOutputParameterValue("O_STATUS_MESSAGE");
+
+            if (statusMessage != null && statusMessage.startsWith("1-")) {
+                throw new RuntimeException("Test creation failed: " + statusMessage.substring(2));
+            }
+
+            return (Long) query.getOutputParameterValue("O_TEST_ID");
+
+        } catch (Exception e) {
+            throw new RuntimeException("Database execution failed for test details. Details: " + e.getMessage(), e);
         }
     }
 }
