@@ -419,6 +419,7 @@ public class TestService {
         if (file == null || file.isEmpty() || file.getOriginalFilename() == null) {
             throw new ExcelValidationException(List.of("Excel file is required"));
         }
+
         String fileName = file.getOriginalFilename().toLowerCase(Locale.ROOT);
         if (!fileName.endsWith(".xlsx") && !fileName.endsWith(".xls")) {
             throw new ExcelValidationException(List.of("Only .xlsx or .xls files are supported"));
