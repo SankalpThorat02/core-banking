@@ -15,7 +15,7 @@ public interface RecruitTestQuestionRepository extends JpaRepository<RecruitTest
     @Query(value = "SELECT * FROM ( " +
             "    SELECT * FROM sankalp_test_questions " +
             "    WHERE test_id = :testId " +
-            "    AND difficulty_level = :level " +
+            "    AND question_level = :level " +
             "    AND question_id NOT IN (:excludedIds) " +
             "    ORDER BY DBMS_RANDOM.VALUE " +
             ") WHERE ROWNUM = 1",
